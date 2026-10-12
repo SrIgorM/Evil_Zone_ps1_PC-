@@ -1,0 +1,25 @@
+# Conteúdo privado e artefatos não pertencem a este kit.
+disc/
+bios/
+assets/
+cache/
+generated/
+saves/
+diagnosticos/
+build/
+dist/
+*.exe
+*.dll
+*.bin
+*.cue
+*.iso
+*.chd
+*.mcd
+*.pst
+*.zip
+*.7z
+*.log
+*.png
+*.jpg
+.env*
+__pycache__/

@@ -1,0 +1,62 @@
+[
+  {
+    "Run": "baseline",
+    "CPUSeconds": 17.59375,
+    "WallSeconds": 30.4106623,
+    "CPUPerWall": 0.5785388633249201,
+    "PrivateMiB": 499.505859375,
+    "FPSMean": 59.92333333333336,
+    "FPSMin": 59.7,
+    "FPSMax": 60.3,
+    "AudioUnderruns": 0,
+    "AudioOverflows": 0
+  },
+  {
+    "Run": "render",
+    "CPUSeconds": 21.015625,
+    "WallSeconds": 30.4254021,
+    "CPUPerWall": 0.6907262862435596,
+    "PrivateMiB": 565.666015625,
+    "FPSMean": 59.94000000000002,
+    "FPSMin": 59.6,
+    "FPSMax": 60.5,
+    "AudioUnderruns": 0,
+    "AudioOverflows": 0
+  },
+  {
+    "Run": "efficient",
+    "CPUSeconds": 16.25,
+    "WallSeconds": 30.4056053,
+    "CPUPerWall": 0.5344409308634944,
+    "PrivateMiB": 500.7037760416667,
+    "FPSMean": 59.91666666666668,
+    "FPSMin": 59.8,
+    "FPSMax": 60.1,
+    "AudioUnderruns": 0,
+    "AudioOverflows": 0
+  },
+  {
+    "Run": "efficient-2",
+    "CPUSeconds": 15.921875,
+    "WallSeconds": 30.3788906,
+    "CPUPerWall": 0.5241098238129868,
+    "PrivateMiB": 499.7134114583333,
+    "FPSMean": 59.91333333333336,
+    "FPSMin": 59.6,
+    "FPSMax": 60.4,
+    "AudioUnderruns": 0,
+    "AudioOverflows": 0
+  },
+  {
+    "Run": "baseline-2",
+    "CPUSeconds": 18.28125,
+    "WallSeconds": 30.4065507,
+    "CPUPerWall": 0.6012273532887109,
+    "PrivateMiB": 503.153515625,
+    "FPSMean": 59.92666666666669,
+    "FPSMin": 59.7,
+    "FPSMax": 60.2,
+    "AudioUnderruns": 0,
+    "AudioOverflows": 0
+  }
+]

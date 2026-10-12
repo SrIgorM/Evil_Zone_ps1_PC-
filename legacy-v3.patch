@@ -1,0 +1,146 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -10,6 +10,12 @@
+ endif()
+ 
+ project(EvilZoneRecomp LANGUAGES C CXX)
++option(PSX_LEGACY_SMALL_DIAGNOSTICS "Reduce host trace history for low-memory Legacy builds" OFF)
++option(PSX_LEGACY_EFFICIENT_PACING "Use high-resolution sleep for Legacy host frame waits" OFF)
++if(PSX_LEGACY_EFFICIENT_PACING)
++    set_property(SOURCE "${PSXRECOMP_ROOT}/runtime/src/frame_pacing.c"
++        APPEND PROPERTY COMPILE_DEFINITIONS PSX_LEGACY_EFFICIENT_PACING=1)
++endif()
+ 
+ # --- Opt-in product surfaces (OFF by default in the framework) -------------
+ # Scaffold prompts / flags fill these. Without recomp-ui, PSX_RECOMP_UI is OFF.
+@@ -53,6 +59,11 @@
+     CODEGEN_SETUP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/codegen_setup.c"
+ )
+ 
++# Keep guest behavior unchanged while bounding host diagnostic history.
++if(PSX_LEGACY_SMALL_DIAGNOSTICS)
++    target_compile_definitions(psx-runtime PRIVATE PSX_LEGACY_SMALL_DIAGNOSTICS=1)
++endif()
++
+ # Stage runtime configs next to the exe for direct build/ launches. Only copy
+ # files that exist — never fail POST_BUILD when game_options.toml is absent.
+ foreach(_PSX_RUNTIME_CONFIG game.toml game_options.toml)
+--- a/psxrecomp/runtime/include/fntrace.h
++++ b/psxrecomp/runtime/include/fntrace.h
+@@ -32,7 +32,13 @@
+  * window retrospectives without per-second eviction.
+  * Definition uses PSX_BSS so the zeros stay out of the PE image (MinGW+LTO
+  * otherwise stuffed this into .rdata and bloated Windows .exe by ~144MiB). */
++/* Legacy retains a short diagnostic history without reserving the full
++ * development trace. This capacity affects host diagnostics only. */
++#if defined(PSX_LEGACY_SMALL_DIAGNOSTICS) && PSX_LEGACY_SMALL_DIAGNOSTICS
++#define FNTRACE_RING_CAP (1u << 14)
++#else
+ #define FNTRACE_RING_CAP (1u << 22)
++#endif
+ 
+ typedef struct {
+     uint32_t frame;     /* s_frame_count at dispatch */
+--- a/psxrecomp/runtime/include/sio.h
++++ b/psxrecomp/runtime/include/sio.h
+@@ -223,7 +223,11 @@
+ 
+ /* ---- SIO byte-level trace ring buffer ----
+  * 1M entries × ~28 B ≈ 32 MB.  At ~600 byte/sec that's ~30 min of history. */
++#if defined(PSX_LEGACY_SMALL_DIAGNOSTICS) && PSX_LEGACY_SMALL_DIAGNOSTICS
++#define SIO_TRACE_CAP (1 << 14)
++#else
+ #define SIO_TRACE_CAP (1 << 20)
++#endif
+ 
+ typedef struct {
+     uint32_t seq;           /* monotonic sequence number */
+@@ -296,7 +300,11 @@
+  * One entry per card protocol transaction (0x81 → terminal state / abort).
+  * Always-on.  64K entries × ~544 B ≈ 35 MB — holds tens of minutes of card
+  * activity at typical detection-cycle rates. */
++#if defined(PSX_LEGACY_SMALL_DIAGNOSTICS) && PSX_LEGACY_SMALL_DIAGNOSTICS
++#define SIO_TXN_CAP        (1 << 10)
++#else
+ #define SIO_TXN_CAP        (1 << 16)
++#endif
+ #define SIO_TXN_MAX_BYTES  256
+ 
+ typedef enum {
+@@ -340,7 +348,11 @@
+  *
+  * Captures every time IRQ #7 (SIO0) is raised into I_STAT.  Always-on.
+  * 1M entries × ~64 B ≈ 64 MB — holds tens of minutes of IRQ history. */
++#if defined(PSX_LEGACY_SMALL_DIAGNOSTICS) && PSX_LEGACY_SMALL_DIAGNOSTICS
++#define SIO_IRQ_RING_CAP (1 << 14)
++#else
+ #define SIO_IRQ_RING_CAP (1 << 20)
++#endif
+ 
+ typedef enum {
+     SIO_IRQ_SRC_UNKNOWN  = 0,
+--- a/psxrecomp/runtime/src/frame_pacing.c
++++ b/psxrecomp/runtime/src/frame_pacing.c
+@@ -22,6 +22,21 @@
+     if (ms < 2) return 0;                      /* sub-2ms: spin instead */
+     return (uint32_t)(ms - 1);                 /* undershoot; spin covers rest */
+ }
++
++#if defined(PSX_LEGACY_EFFICIENT_PACING)
++/* Host-only wait policy: retain a 250us guard for scheduling jitter instead
++ * of burning the last 1-2ms of every frame. Deadlines and catch-up are unchanged. */
++static uint32_t legacy_pacing_sleep_us(uint64_t now, uint64_t deadline,
++                                      uint64_t freq, uint64_t period) {
++    if (now >= deadline || freq == 0) return 0;
++    uint64_t remaining = deadline - now;
++    if (remaining > period) remaining = period;
++    double us = (double)remaining * 1000000.0 / (double)freq;
++    if (us <= 350.0) return 0;
++    if (us > 1000000.0) us = 1000000.0;
++    return (uint32_t)(us - 250.0);
++}
++#endif
+ 
+ #ifndef FRAME_PACING_PURE_ONLY
+ 
+@@ -64,10 +79,16 @@
+ 
+     for (;;) {
+         now = SDL_GetPerformanceCounter();     /* ONE read per iteration */
++#if defined(PSX_LEGACY_EFFICIENT_PACING)
++        uint32_t us = legacy_pacing_sleep_us(now, p->next_deadline, freq, period);
++        if (us == 0) break;
++        psx_host_sleep_micros(us);
++#else
+         uint32_t ms = frame_pacing_sleep_ms(now, p->next_deadline, freq, period);
+         if (ms == 0) break;
+         /* Waitable timer on Win32; usleep on Unix — not coarse Sleep/SDL_Delay. */
+         psx_host_sleep_ms(ms);
++#endif
+     }
+     while (SDL_GetPerformanceCounter() < p->next_deadline) {
+         /* final sub-ms spin */
+--- a/psxrecomp/runtime/tests/test_frame_pacing.c
++++ b/psxrecomp/runtime/tests/test_frame_pacing.c
+@@ -72,6 +72,21 @@
+     }
+     CHECK(sweep_ok, "tick-by-tick sweep across deadline never exceeds one period");
+ 
++#if defined(PSX_LEGACY_EFFICIENT_PACING)
++    CHECK(legacy_pacing_sleep_us(deadline + 1, deadline, FREQ, PERIOD) == 0,
++          "Legacy expired deadline never underflows");
++    CHECK(legacy_pacing_sleep_us(deadline, deadline, FREQ, PERIOD) == 0,
++          "Legacy exact deadline does not sleep");
++    CHECK(legacy_pacing_sleep_us(0, deadline, 0, PERIOD) == 0,
++          "Legacy zero frequency does not divide");
++    CHECK(legacy_pacing_sleep_us(deadline - FREQ/1000, deadline, FREQ, PERIOD) == 750,
++          "Legacy sleeps 750us with 1ms remaining");
++    CHECK(legacy_pacing_sleep_us(deadline - 2500, deadline, FREQ, PERIOD) == 0,
++          "Legacy leaves final 250us for spin");
++    CHECK(legacy_pacing_sleep_us(0, UINT64_MAX, FREQ, PERIOD) < 16684,
++          "Legacy corrupt deadline is bounded to one period");
++#endif
++
+     printf(failures ? "FAILED (%d)\n" : "ALL PASS\n", failures);
+     return failures ? 1 : 0;
+ }
