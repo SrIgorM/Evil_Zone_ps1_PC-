@@ -87,7 +87,7 @@ Se estiver em dúvida, comece pela **Legacy**.
 
 ## Download
 
-Acesse a seção [Releases]([https://github.com/SrIgorM/Evil_Zone_ps1_PC/releases](https://github.com/SrIgorM/Evil_Zone_ps1_PC-/releases/tag/V1.0.0)) e escolha uma das versões:
+Acesse a seção (https://github.com/SrIgorM/Evil_Zone_ps1_PC-/releases/tag/V1.0.0)) e escolha uma das versões:
 
 - `EvilZone-Legacy.zip`
 - `EvilZone-1080p.zip`
