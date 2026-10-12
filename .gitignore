@@ -1,15 +1,19 @@
-# Conteúdo privado e artefatos não pertencem a este kit.
+# Conteúdo privado, builds e arquivos temporários.
 disc/
 bios/
-assets/
 cache/
-generated/
 saves/
 diagnosticos/
 build/
+build-*/
 dist/
+.cache/
+toolchain/
+overlay_toolchain/
 *.exe
 *.dll
+*.obj
+*.lib
 *.bin
 *.cue
 *.iso
@@ -18,8 +22,10 @@ dist/
 *.pst
 *.zip
 *.7z
+*.tar
 *.log
-*.png
-*.jpg
+*.bak
+psx_freeze_*
+psx_last_run_report.json
 .env*
 __pycache__/

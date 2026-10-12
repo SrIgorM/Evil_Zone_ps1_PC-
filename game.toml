@@ -1,0 +1,55 @@
+# Autofilled by tools/new_project_layout/probe_disc.py from your legal dump.
+# Review before shipping. Runtime quirks / overlay seeds still need hand work.
+
+[game]
+name = "Evil Zone"
+id = "SLUS-00855"
+players = 2
+exe = "disc/SLUS_008.55"
+disc = "disc/Evil Zone.cue"
+load_address = "0x80010000"
+entry_pc = "0x80066F00"
+text_size = "0x00084000"
+stack_base = "0x801FFFF0"
+
+# Digests are for data Track 01 (first BINARY FILE / TRACK 01).
+[prepare_disc]
+out_dir = "disc"
+bin_name = "Evil Zone.bin"
+cue_name = "Evil Zone.cue"
+boot_exe = "SLUS_008.55"
+known_sizes = [606202128]
+known_md5 = [
+  "a957548aaf99a6cc6497c39a8925cb7e",
+]
+known_sha1 = [
+  "de992e76f8f22cc15183fe876bf6e6b020a069f2",
+]
+known_crc32 = [
+  "100bbcec",
+]
+
+[recompiler]
+seeds = "seeds/ghidra_funcs.txt"
+out_dir = "generated"
+strict = true
+
+[runtime]
+window_title = "Evil Zone Recompiled"
+memcard_dir = "saves"
+overlay_cache = true
+
+[video]
+renderer = "opengl"
+aspect_ratio = "4:3"
+
+[controller]
+default_mode = "digital"
+
+# Online mount gate: digests + track count + optional TOC fingerprint
+# (see docs/NETPLAY.md).
+multitap_analog = true
+[netplay]
+require_cue = true
+required_tracks = 1
+required_disc_fp = "8a4b0c85b1d1abeb28aa5fb8b22e7402e7b786caba7c1efca1dd18159068ea10"
